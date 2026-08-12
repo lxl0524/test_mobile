@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>打卡提醒</title>
+<style>
+  :root {
+    --primary: #4f6ef7;
+    --primary-light: #e8ecff;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text2: #64748b;
+    --border: #e2e8f0;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 80px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    color: #fff;
+    padding: 32px 20px 24px;
+    text-align: center;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header p { font-size: 13px; opacity: .8; margin-top: 4px; }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px;
+    margin-top: -16px;
+  }
+  .stat-card {
+    flex: 1;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 12px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+  .stat-card .num { font-size: 26px; font-weight: 700; color: var(--primary); }
+  .stat-card .label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* Section */
+  .section { padding: 0 20px; margin-top: 20px; }
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Reminder list */
+  .reminder-list { display: flex; flex-direction: column; gap: 10px; }
+  .reminder-item {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.04);
+    transition: transform .15s;
+  }
+  .reminder-item:active { transform: scale(.98); }
+  .reminder-icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .reminder-info { flex: 1; }
+  .reminder-info .time { font-size: 20px; font-weight: 700; }
+  .reminder-info .name { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .reminder-toggle {
+    position: relative;
+    width: 44px; height: 24px;
+    background: #cbd5e1;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background .2s;
+    flex-shrink: 0;
+  }
+  .reminder-toggle.on { background: var(--primary); }
+  .reminder-toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 20px; height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  }
+  .reminder-toggle.on::after { transform: translateX(20px); }
+  .reminder-del {
+    background: none; border: none;
+    color: var(--danger); font-size: 18px;
+    cursor: pointer; padding: 4px 8px;
+    opacity: .6;
+  }
+  .reminder-del:hover { opacity: 1; }
+
+  /* Add reminder */
+  .add-form {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.04);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .add-form .row { display: flex; gap: 10px; }
+  .add-form input, .add-form select {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    outline: none;
+    background: #fff;
+    transition: border-color .2s;
+  }
+  .add-form input:focus, .add-form select:focus { border-color: var(--primary); }
+  .btn {
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .btn:active { opacity: .7; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-outline { background: var(--primary-light); color: var(--primary); }
+
+  /* Records */
+  .record-list { display: flex; flex-direction: column; gap: 8px; }
+  .record-item {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.03);
+  }
+  .record-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+  .record-item .date { font-size: 14px; font-weight: 500; }
+  .record-item .detail { font-size: 12px; color: var(--text2); margin-left: auto; }
+  .empty-tip {
+    text-align: center;
+    color: var(--text2);
+    font-size: 13px;
+    padding: 30px 0;
+  }
+
+  /* Check-in button (floating) */
+  .fab {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    color: #fff;
+    border: none;
+    border-radius: 28px;
+    padding: 14px 36px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(79,110,247,.4);
+    z-index: 100;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .fab:active { transform: translateX(-50%) scale(.95); }
+  .fab.done {
+    background: var(--success);
+    box-shadow: 0 6px 24px rgba(34,197,94,.3);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--text);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    z-index: 999;
+    transition: transform .3s ease;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 4px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.04);
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--text2);
+    transition: all .2s;
+  }
+  .tab.active { background: var(--primary); color: #fff; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Permission banner */
+  .perm-banner {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 10px 16px;
+    margin: 12px 20px 0;
+    border-radius: 10px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .perm-banner button {
+    background: #f59e0b;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>打卡提醒</h1>
+  <p id="todayText"></p>
+</div>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="num" id="totalDays">0</div>
+    <div class="label">累计打卡</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="streakDays">0</div>
+    <div class="label">连续天数</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="todayStatus">—</div>
+    <div class="label">今日状态</div>
+  </div>
+</div>
+
+<div id="permBanner" class="perm-banner hidden">
+  <span>请开启通知权限以接收打卡提醒</span>
+  <button onclick="requestPermission()">开启</button>
+</div>
+
+<div class="section">
+  <div class="tabs">
+    <div class="tab active" data-tab="reminders">提醒设置</div>
+    <div class="tab" data-tab="records">打卡记录</div>
+  </div>
+</div>
+
+<!-- Tab: Reminders -->
+<div id="tab-reminders" class="tab-content active">
+  <div class="section">
+    <div class="section-title">我的提醒</div>
+    <div class="reminder-list" id="reminderList"></div>
+  </div>
+
+  <div class="section" style="margin-top:16px">
+    <div class="section-title">添加提醒</div>
+    <div class="add-form">
+      <div class="row">
+        <input type="time" id="inputTime" value="09:00">
+        <input type="text" id="inputName" placeholder="打卡名称（如：晨会签到）" maxlength="20">
+      </div>
+      <button class="btn btn-primary" onclick="addReminder()">添加提醒</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Records -->
+<div id="tab-records" class="tab-content">
+  <div class="section">
+    <div class="section-title">
+      打卡记录
+      <button class="btn btn-outline" style="padding:6px 14px;font-size:12px" onclick="clearRecords()">清空</button>
+    </div>
+    <div class="record-list" id="recordList"></div>
+  </div>
+</div>
+
+<button class="fab" id="fabBtn" onclick="checkIn()">立即打卡</button>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== Data =====
+const STORE_KEY = 'checkin_app_data';
+
+function loadData() {
+  const raw = localStorage.getItem(STORE_KEY);
+  if (raw) return JSON.parse(raw);
+  return {
+    reminders: [
+      { id: 1, time: '09:00', name: '上班打卡', enabled: true },
+      { id: 2, time: '18:00', name: '下班打卡', enabled: true }
+    ],
+    records: []
+  };
+}
+
+function saveData(data) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(data));
+}
+
+let data = loadData();
+
+// ===== Date helpers =====
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatWeekday() {
+  const days = ['日','一','二','三','四','五','六'];
+  const d = new Date();
+  return `${d.getMonth()+1}月${d.getDate()}日 星期${days[d.getDay()]}`;
+}
+
+// ===== Render =====
+function render() {
+  document.getElementById('todayText').textContent = formatWeekday();
+
+  // Stats
+  const records = data.records;
+  const totalDays = new Set(records.map(r => r.date)).size;
+  document.getElementById('totalDays').textContent = totalDays;
+
+  // Streak
+  const dateSet = new Set(records.map(r => r.date));
+  let streak = 0;
+  let d = new Date();
+  // If not checked in today, start from yesterday
+  if (!dateSet.has(todayStr())) {
+    d.setDate(d.getDate() - 1);
+  }
+  while (dateSet.has(d.toISOString().slice(0, 10))) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  document.getElementById('streakDays').textContent = streak;
+
+  // Today status
+  const todayChecked = records.some(r => r.date === todayStr());
+  document.getElementById('todayStatus').textContent = todayChecked ? '已打卡' : '未打卡';
+  document.getElementById('todayStatus').style.color = todayChecked ? 'var(--success)' : 'var(--danger)';
+
+  // FAB
+  const fab = document.getElementById('fabBtn');
+  if (todayChecked) {
+    fab.textContent = '今日已打卡';
+    fab.classList.add('done');
+  } else {
+    fab.textContent = '立即打卡';
+    fab.classList.remove('done');
+  }
+
+  renderReminders();
+  renderRecords();
+}
+
+function renderReminders() {
+  const list = document.getElementById('reminderList');
+  if (data.reminders.length === 0) {
+    list.innerHTML = '<div class="empty-tip">暂无提醒，请添加</div>';
+    return;
+  }
+  list.innerHTML = data.reminders.map(r => `
+    <div class="reminder-item">
+      <div class="reminder-icon">⏰</div>
+      <div class="reminder-info">
+        <div class="time">${r.time}</div>
+        <div class="name">${esc(r.name)}</div>
+      </div>
+      <div class="reminder-toggle ${r.enabled ? 'on' : ''}" onclick="toggleReminder(${r.id})"></div>
+      <button class="reminder-del" onclick="deleteReminder(${r.id})">✕</button>
+    </div>
+  `).join('');
+}
+
+function renderRecords() {
+  const list = document.getElementById('recordList');
+  if (data.records.length === 0) {
+    list.innerHTML = '<div class="empty-tip">还没有打卡记录</div>';
+    return;
+  }
+  // Sort newest first
+  const sorted = [...data.records].sort((a, b) => b.ts - a.ts);
+  list.innerHTML = sorted.map(r => `
+    <div class="record-item">
+      <div class="record-dot"></div>
+      <div class="date">${r.date}</div>
+      <div class="detail">${esc(r.name)} ${r.time}</div>
+    </div>
+  `).join('');
+}
+
+function esc(s) {
+  const el = document.createElement('span');
+  el.textContent = s;
+  return el.innerHTML;
+}
+
+// ===== Actions =====
+function addReminder() {
+  const time = document.getElementById('inputTime').value;
+  const name = document.getElementById('inputName').value.trim() || '打卡提醒';
+  if (!time) { showToast('请选择时间'); return; }
+  data.reminders.push({ id: Date.now(), time, name, enabled: true });
+  saveData(data);
+  render();
+  scheduleAll();
+  showToast('提醒已添加');
+  document.getElementById('inputName').value = '';
+}
+
+function toggleReminder(id) {
+  const r = data.reminders.find(x => x.id === id);
+  if (r) r.enabled = !r.enabled;
+  saveData(data);
+  render();
+  scheduleAll();
+}
+
+function deleteReminder(id) {
+  data.reminders = data.reminders.filter(x => x.id !== id);
+  saveData(data);
+  render();
+  scheduleAll();
+}
+
+function checkIn() {
+  const today = todayStr();
+  if (data.records.some(r => r.date === today)) {
+    showToast('今天已经打过卡啦');
+    return;
+  }
+  const now = new Date();
+  // Find the closest reminder name
+  let name = '打卡';
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  let minDiff = Infinity;
+  data.reminders.forEach(r => {
+    if (!r.enabled) return;
+    const [h, m] = r.time.split(':').map(Number);
+    const diff = Math.abs((h * 60 + m) - nowMin);
+    if (diff < minDiff) { minDiff = diff; name = r.name; }
+  });
+  data.records.push({
+    date: today,
+    time: now.toTimeString().slice(0, 5),
+    name,
+    ts: now.getTime()
+  });
+  saveData(data);
+  render();
+  showToast('打卡成功！');
+}
+
+function clearRecords() {
+  if (!confirm('确定清空所有打卡记录？')) return;
+  data.records = [];
+  saveData(data);
+  render();
+  showToast('记录已清空');
+}
+
+// ===== Tabs =====
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ===== Toast =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ===== Notifications =====
+function requestPermission() {
+  if ('Notification' in window) {
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') {
+        document.getElementById('permBanner').classList.add('hidden');
+        showToast('通知已开启');
+        scheduleAll();
+      }
+    });
+  }
+}
+
+function checkPermBanner() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
+    document.getElementById('permBanner').classList.remove('hidden');
+  } else {
+    document.getElementById('permBanner').classList.add('hidden');
+  }
+}
+
+// Simple timer-based reminders
+let timerIds = [];
+
+function scheduleAll() {
+  timerIds.forEach(id => clearTimeout(id));
+  timerIds = [];
+
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const now = new Date();
+  data.reminders.forEach(r => {
+    if (!r.enabled) return;
+    const [h, m] = r.time.split(':').map(Number);
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+    const diff = target.getTime() - now.getTime();
+    if (diff > 0 && diff < 24 * 60 * 60 * 1000) {
+      const id = setTimeout(() => {
+        new Notification('打卡提醒', {
+          body: `该${r.name}啦！`,
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⏰</text></svg>'
+        });
+      }, diff);
+      timerIds.push(id);
+    }
+  });
+}
+
+// ===== Init =====
+render();
+checkPermBanner();
+scheduleAll();
+
+// Re-schedule every minute to catch new days
+setInterval(() => { scheduleAll(); render(); }, 60000);
+</script>
+</body>
+</html>
