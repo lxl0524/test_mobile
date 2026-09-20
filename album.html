@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>我的相册</title>
+<style>
+  :root {
+    --primary: #4f6ef7;
+    --primary-light: #e8ecff;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text2: #64748b;
+    --border: #e2e8f0;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 90px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    color: #fff;
+    padding: 32px 20px 24px;
+    text-align: center;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header p { font-size: 13px; opacity: .8; margin-top: 4px; }
+
+  /* Stats */
+  .stats {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px;
+    margin-top: -16px;
+  }
+  .stat-card {
+    flex: 1;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 12px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+  .stat-card .num { font-size: 26px; font-weight: 700; color: var(--primary); }
+  .stat-card .label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    padding: 0 20px;
+    margin-top: 4px;
+  }
+  .filter-chip {
+    flex: 1;
+    text-align: center;
+    padding: 9px;
+    font-size: 14px;
+    font-weight: 500;
+    background: var(--card);
+    color: var(--text2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .filter-chip.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* Grid */
+  .section { padding: 16px 20px 0; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .photo-card {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #eef1f6;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  }
+  .photo-card:active { transform: scale(.97); }
+  .photo-card img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .star-badge {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .photo-card.fav .star-badge { opacity: 1; }
+  .empty-tip {
+    text-align: center;
+    color: var(--text2);
+    font-size: 13px;
+    padding: 40px 0;
+    grid-column: 1 / -1;
+  }
+
+  /* FAB */
+  .fab {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    color: #fff;
+    border: none;
+    border-radius: 28px;
+    padding: 14px 36px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(79,110,247,.4);
+    z-index: 100;
+    transition: transform .15s;
+  }
+  .fab:active { transform: translateX(-50%) scale(.95); }
+
+  /* Viewer */
+  .viewer {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 500;
+    display: none;
+    flex-direction: column;
+  }
+  .viewer.show { display: flex; }
+  .viewer-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    color: #fff;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .viewer-top button {
+    background: rgba(255,255,255,.15);
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .viewer-swipe {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .viewer-swipe::-webkit-scrollbar { display: none; }
+  .viewer-item {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .viewer-item img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+  .viewer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px calc(14px + env(safe-area-inset-bottom));
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .viewer-caption { font-size: 13px; opacity: .85; overflow: hidden; }
+  .viewer-caption .name {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .viewer-actions { display: flex; gap: 10px; flex-shrink: 0; margin-left: 12px; }
+  .viewer-actions button {
+    background: rgba(255,255,255,.15);
+    border: none;
+    color: #fff;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    font-size: 17px;
+    cursor: pointer;
+  }
+  .viewer-actions button.faved { color: #fbbf24; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--text);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    z-index: 999;
+    transition: transform .3s ease;
+    pointer-events: none;
+    max-width: 80vw;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>我的相册</h1>
+  <p id="todayText"></p>
+</div>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="num" id="totalCount">0</div>
+    <div class="label">照片总数</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="favCount">0</div>
+    <div class="label">收藏照片</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" id="monthCount">0</div>
+    <div class="label">本月新增</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="filter-chip active" data-filter="all" onclick="setFilter('all')">全部</div>
+  <div class="filter-chip" data-filter="fav" onclick="setFilter('fav')">收藏</div>
+  <div class="filter-chip" data-filter="video" onclick="setFilter('video')">视频</div>
+</div>
+
+<div class="section">
+  <div class="grid" id="photoGrid"></div>
+</div>
+
+<button class="fab" onclick="pickPhoto()">＋ 添加照片</button>
+
+<input type="file" id="fileInput" accept="image/*" multiple hidden>
+
+<div class="viewer" id="viewer">
+  <div class="viewer-top">
+    <button onclick="closeViewer()">✕</button>
+    <span id="viewerIndex">1 / 1</span>
+    <button onclick="toggleFavCurrent()" id="viewerFavTop">☆</button>
+  </div>
+  <div class="viewer-swipe" id="viewerSwipe"></div>
+  <div class="viewer-bottom">
+    <div class="viewer-caption">
+      <div class="name" id="viewerName"></div>
+      <div id="viewerMeta"></div>
+    </div>
+    <div class="viewer-actions">
+      <button onclick="toggleFavCurrent()" id="viewerFavBtn">☆</button>
+      <button onclick="downloadCurrent()">⬇</button>
+      <button onclick="deleteCurrent()">🗑</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== Data =====
+const STORE_KEY = 'album_app_data_v1';
+const IMAGE_LIMIT = 25;
+
+function defaultPhotos() {
+  const palette = [
+    ['#a5b4fc', '#4f46e5'], ['#fca5a5', '#dc2626'], ['#86efac', '#16a34a'],
+    ['#fdba74', '#ea580c'], ['#93c5fd', '#2563eb'], ['#d8b4fe', '#9333ea'],
+    ['#fde68a', '#d97706'], ['#99f6e4', '#0d9488']
+  ];
+  const labels = ['落日余晖', '城市夜景', '山间清晨', '海边假期', '咖啡时光', '街角猫咪', '樱花季', '星空露营'];
+  const now = Date.now();
+  return labels.map((name, i) => ({
+    id: 'demo_' + i,
+    name,
+    src: svgPhoto(palette[i][0], palette[i][1], i),
+    fav: i === 0 || i === 3,
+    ts: now - i * 86400000 * 3,
+    isVideo: false,
+    size: 0
+  }));
+}
+
+function svgPhoto(c1, c2, i) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="600" height="600" fill="url(#g)"/><circle cx="${300 + (i%3-1)*80}" cy="260" r="70" fill="rgba(255,255,255,.85)"/><path d="M0 460 L180 330 L330 450 L470 360 L600 480 L600 600 L0 600 Z" fill="rgba(0,0,0,.18)"/></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (Array.isArray(d.photos)) return d;
+    }
+  } catch (e) { /* corrupted -> reset */ }
+  return { photos: defaultPhotos() };
+}
+
+function saveData() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  } catch (e) {
+    showToast('存储空间不足，删除部分照片后再试');
+  }
+}
+
+let data = loadData();
+let filter = 'all';
+let viewerList = [];   // currently displayed ids
+let viewerIdx = 0;     // index into viewerList
+
+// ===== Helpers =====
+function esc(s) {
+  const el = document.createElement('span');
+  el.textContent = s;
+  return el.innerHTML;
+}
+
+function fmtDate(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function formatToday() {
+  const days = ['日','一','二','三','四','五','六'];
+  const d = new Date();
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 星期${days[d.getDay()]}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ===== Filter & render =====
+function visiblePhotos() {
+  if (filter === 'fav') return data.photos.filter(p => p.fav);
+  if (filter === 'video') return data.photos.filter(p => p.isVideo);
+  return data.photos;
+}
+
+function render() {
+  document.getElementById('todayText').textContent = formatToday();
+
+  const photos = data.photos;
+  document.getElementById('totalCount').textContent = photos.length;
+  document.getElementById('favCount').textContent = photos.filter(p => p.fav).length;
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  document.getElementById('monthCount').textContent = photos.filter(p => p.ts >= monthStart.getTime()).length;
+
+  const vis = visiblePhotos();
+  const grid = document.getElementById('photoGrid');
+  if (vis.length === 0) {
+    grid.innerHTML = '<div class="empty-tip">暂无照片，点击下方按钮添加</div>';
+    return;
+  }
+  grid.innerHTML = vis.map((p, i) => `
+    <div class="photo-card ${p.fav ? 'fav' : ''}" onclick="openViewer(${i})">
+      <img src="${p.src}" alt="${esc(p.name)}" loading="lazy">
+      ${p.isVideo ? '<div class="star-badge" style="opacity:1">▶</div>' : '<div class="star-badge">★</div>'}
+    </div>
+  `).join('');
+}
+
+function setFilter(f) {
+  filter = f;
+  document.querySelectorAll('.filter-chip').forEach(c =>
+    c.classList.toggle('active', c.dataset.filter === f));
+  render();
+}
+
+// ===== Add photos =====
+function pickPhoto() {
+  document.getElementById('fileInput').click();
+}
+
+document.getElementById('fileInput').addEventListener('change', function () {
+  const files = [...this.files];
+  this.value = '';
+  if (files.length === 0) return;
+
+  const quota = IMAGE_LIMIT - data.photos.length;
+  if (quota <= 0) { showToast(`最多保存 ${IMAGE_LIMIT} 张（存储限制）`); return; }
+  if (files.length > quota) showToast(`存储有限，仅添加前 ${quota} 张`);
+
+  let added = 0, failed = 0;
+  let pending = files.slice(0, quota).length;
+
+  files.slice(0, quota).forEach(file => {
+    if (file.size > 4 * 1024 * 1024) {
+      failed++;
+      if (--pending === 0) done();
+      return;
+    }
+    const isVideo = file.type.startsWith('video/');
+    const reader = new FileReader();
+    reader.onload = e => {
+      data.photos.unshift({
+        id: 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        name: file.name.replace(/\.[^.]+$/, ''),
+        src: e.target.result,
+        fav: false,
+        ts: Date.now(),
+        isVideo,
+        size: file.size
+      });
+      added++;
+      if (--pending === 0) done();
+    };
+    reader.onerror = () => {
+      failed++;
+      if (--pending === 0) done();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function done() {
+    if (added > 0) {
+      saveData();
+      filter = isAnyFilterEmpty() ? 'all' : filter;
+      render();
+      showToast(`已添加 ${added} 张照片` + (failed ? `，${failed} 个失败` : ''));
+    } else {
+      showToast(failed ? '添加失败，请重试' : '文件过大（限 4MB 内）');
+    }
+  }
+
+  function isAnyFilterEmpty() {
+    return visiblePhotos().length === 0 && data.photos.length > 0;
+  }
+});
+
+// ===== Viewer =====
+function openViewer(indexInList) {
+  viewerList = visiblePhotos().map(p => p.id);
+  viewerIdx = indexInList;
+  buildViewer();
+  document.getElementById('viewer').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function buildViewer() {
+  const wrap = document.getElementById('viewerSwipe');
+  wrap.innerHTML = viewerList.map(id => {
+    const p = data.photos.find(x => x.id === id);
+    return `<div class="viewer-item">${p.isVideo ? `<video src="${p.src}" controls playsinline></video>` : `<img src="${p.src}" alt="">`}</div>`;
+  }).join('');
+  wrap.addEventListener('scroll', onViewerScroll, { passive: true });
+  wrap.scrollLeft = viewerIdx * wrap.clientWidth;
+  syncViewerUI();
+}
+
+function onViewerScroll() {
+  const wrap = document.getElementById('viewerSwipe');
+  const idx = Math.round(wrap.scrollLeft / Math.max(wrap.clientWidth, 1));
+  if (idx !== viewerIdx && idx >= 0 && idx < viewerList.length) {
+    viewerIdx = idx;
+    syncViewerUI();
+  }
+}
+
+function syncViewerUI() {
+  const p = data.photos.find(x => x.id === viewerList[viewerIdx]);
+  if (!p) return;
+  document.getElementById('viewerIndex').textContent = `${viewerIdx + 1} / ${viewerList.length}`;
+  document.getElementById('viewerName').textContent = p.name;
+  document.getElementById('viewerMeta').textContent =
+    fmtDate(p.ts) + (p.size ? ' · ' + fmtSize(p.size) : '') + (p.isVideo ? ' · 视频' : '');
+  const fav = p.fav ? '★' : '☆';
+  document.getElementById('viewerFavBtn').textContent = fav;
+  document.getElementById('viewerFavTop').textContent = fav;
+  document.getElementById('viewerFavBtn').classList.toggle('faved', p.fav);
+}
+
+function closeViewer() {
+  document.getElementById('viewer').classList.remove('show');
+  document.body.style.overflow = '';
+  document.getElementById('viewerSwipe').removeEventListener('scroll', onViewerScroll);
+  document.getElementById('viewerSwipe').innerHTML = '';
+}
+
+function toggleFavCurrent() {
+  const p = data.photos.find(x => x.id === viewerList[viewerIdx]);
+  if (!p) return;
+  p.fav = !p.fav;
+  saveData();
+  syncViewerUI();
+  showToast(p.fav ? '已收藏' : '已取消收藏');
+}
+
+function downloadCurrent() {
+  const p = data.photos.find(x => x.id === viewerList[viewerIdx]);
+  if (!p) return;
+  const a = document.createElement('a');
+  a.href = p.src;
+  a.download = p.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  showToast('已开始下载');
+}
+
+function deleteCurrent() {
+  const id = viewerList[viewerIdx];
+  const p = data.photos.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`删除「${p.name}」？`)) return;
+  data.photos = data.photos.filter(x => x.id !== id);
+  viewerList = viewerList.filter(x => x !== id);
+  saveData();
+  if (viewerList.length === 0) {
+    closeViewer();
+  } else {
+    if (viewerIdx >= viewerList.length) viewerIdx = viewerList.length - 1;
+    buildViewer();
+  }
+  render();
+  showToast('已删除');
+}
+
+// ===== Init =====
+render();
+</script>
+</body>
+</html>
