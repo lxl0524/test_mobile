@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#faf7f2">
+  <meta name="description" content="无需下载、无需联网的记忆翻牌小游戏。">
+  <title>记忆翻牌 · 每日脑力练习</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #faf7f2;
+      --surface: #ffffff;
+      --ink: #302c28;
+      --muted: #716a62;
+      --line: #e5ddd3;
+      --accent: #9a432d;
+      --accent-soft: #f8e7df;
+      --success: #326650;
+      --success-soft: #e5f1e9;
+      --shadow: 0 12px 40px rgb(58 41 26 / 7%);
+      --radius: 22px;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      min-width: 280px;
+      min-height: 100vh;
+      background: var(--page);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+    button,
+    select {
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:disabled {
+      cursor: default;
+    }
+    button:focus-visible,
+    select:focus-visible,
+    a:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 4px;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    .shell {
+      width: min(100% - 40px, 960px);
+      margin: 0 auto;
+      padding: 28px 0 32px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .brand-mark {
+      display: grid;
+      grid-template-columns: repeat(2, 8px);
+      gap: 4px;
+      transform: rotate(-8deg);
+    }
+    .brand-mark i {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: var(--accent);
+    }
+    .brand-mark i:last-child {
+      opacity: .35;
+    }
+    .topbar a {
+      color: var(--muted);
+      font-size: 13px;
+      text-underline-offset: 4px;
+    }
+    .intro {
+      padding: 34px 0 24px;
+    }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 42px);
+      line-height: 1.25;
+      letter-spacing: -1px;
+    }
+    .intro p:last-child {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 230px;
+      gap: 24px;
+      align-items: start;
+    }
+    .play-area {
+      min-width: 0;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 0 0 22px;
+    }
+    .stat {
+      text-align: center;
+    }
+    .stat + .stat {
+      border-left: 1px solid var(--line);
+    }
+    .stat dt {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .stat dd {
+      margin: 4px 0 0;
+      font-size: 24px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.3;
+    }
+    .board-wrap {
+      position: relative;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .board[data-columns="6"] {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+    .card {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      padding: 0;
+      border: 0;
+      border-radius: 14px;
+      background: transparent;
+      perspective: 700px;
+    }
+    .card-inner {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      transition: transform .25s ease;
+    }
+    .card[data-revealed="true"] .card-inner,
+    .card[data-matched="true"] .card-inner {
+      transform: rotateY(180deg);
+    }
+    .card-face {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .card-back {
+      background: #f0e9df;
+      color: #9c8e7e;
+      font-size: 20px;
+      font-weight: 500;
+    }
+    .card-back::before {
+      content: "";
+      position: absolute;
+      inset: 7px;
+      border: 1px solid rgb(156 142 126 / 25%);
+      border-radius: 9px;
+    }
+    .card-front {
+      transform: rotateY(180deg);
+      background: var(--accent-soft);
+      border-color: #e4bcab;
+      color: var(--accent);
+      font-size: clamp(20px, 4vw, 34px);
+      font-weight: 750;
+    }
+    .card[data-matched="true"] .card-front {
+      color: var(--success);
+      background: var(--success-soft);
+      border-color: #b8d6c3;
+    }
+    .card[data-matched="true"] .card-front::after {
+      content: "已配对";
+      position: absolute;
+      bottom: 3px;
+      font-size: 9px;
+      font-weight: 400;
+    }
+    .pause-cover {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f3eee6;
+      text-align: center;
+      padding: 20px;
+    }
+    .pause-cover strong {
+      font-size: 22px;
+    }
+    .pause-cover p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .progress-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    progress {
+      display: block;
+      width: 100%;
+      height: 6px;
+      margin-top: 8px;
+      overflow: hidden;
+      border: 0;
+      border-radius: 6px;
+      accent-color: var(--success);
+    }
+    progress::-webkit-progress-bar {
+      background: #eee9e2;
+      border-radius: 6px;
+    }
+    progress::-webkit-progress-value {
+      background: var(--success);
+      border-radius: 6px;
+      transition: width .2s;
+    }
+    progress::-moz-progress-bar {
+      background: var(--success);
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .button {
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .button-primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    .button:disabled {
+      opacity: .45;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 18px;
+      border: 1px solid #b8d6c3;
+      border-radius: 14px;
+      background: var(--success-soft);
+    }
+    .result h2 {
+      margin: 0 0 6px;
+      color: var(--success);
+      font-size: 20px;
+    }
+    .result p {
+      margin: 0;
+      font-size: 13px;
+    }
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .panel {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #f6f1ea;
+    }
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 15px;
+    }
+    .field {
+      display: block;
+      margin-bottom: 14px;
+    }
+    .field:last-child {
+      margin-bottom: 0;
+    }
+    .field span {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    select {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+    }
+    .best-value {
+      margin: 0 0 6px;
+      color: var(--accent);
+      font-size: 23px;
+      font-weight: 700;
+    }
+    .note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    details {
+      padding: 18px 0 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    summary {
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    details ol {
+      margin: 10px 0;
+      padding-left: 22px;
+    }
+    details li {
+      margin-bottom: 8px;
+    }
+    kbd {
+      padding: 1px 5px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--surface);
+      font: inherit;
+    }
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+    }
+    dialog {
+      width: min(100% - 40px, 380px);
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      color: var(--ink);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    dialog::backdrop {
+      background: rgb(30 25 20 / 40%);
+    }
+    dialog h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+    dialog p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    @media (hover: hover) {
+      .card:not(:disabled):hover .card-back {
+        background: #e5dacb;
+      }
+      .button:not(:disabled):hover {
+        filter: brightness(.96);
+      }
+    }
+    @media (max-width: 720px) {
+      .shell {
+        width: min(100% - 28px, 520px);
+        padding-top: 18px;
+      }
+      .layout {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      .intro {
+        padding-top: 24px;
+      }
+      .sidebar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .sidebar details {
+        grid-column: 1 / -1;
+      }
+      .play-area {
+        padding: 18px;
+      }
+      .panel {
+        padding: 16px;
+      }
+      .board[data-columns="6"] {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 360px) {
+      .shell {
+        width: calc(100% - 20px);
+      }
+      .play-area {
+        padding: 12px;
+      }
+      .board {
+        gap: 7px;
+      }
+      .sidebar {
+        grid-template-columns: 1fr;
+      }
+      .stat dd {
+        font-size: 20px;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <i></i><i></i><i></i><i></i>
+        </span>
+        每日脑力练习
+      </div>
+      <a href="./index.html">返回打卡</a>
+    </header>
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">MEMORY / 01</p>
+      <h1 id="page-title">翻开卡片，找回默契。</h1>
+      <p>记住每一次相遇，让相同的卡片再次碰面。</p>
+    </section>
+    <div class="layout">
+      <section class="play-area" aria-label="记忆翻牌游戏">
+        <dl class="stats">
+          <div class="stat">
+            <dt>翻牌次数</dt>
+            <dd id="moves">0</dd>
+          </div>
+          <div class="stat">
+            <dt>用时</dt>
+            <dd id="clock">00:00</dd>
+          </div>
+          <div class="stat">
+            <dt>已配对</dt>
+            <dd id="pairs">0 / 6</dd>
+          </div>
+        </dl>
+        <div class="board-wrap">
+          <div id="board" class="board" role="group" aria-label="卡片棋盘"></div>
+          <div id="pause-cover" class="pause-cover" hidden>
+            <strong>休息一下</strong>
+            <p>计时已暂停，卡片也暂时藏好了。</p>
+            <button id="resume" class="button button-primary" type="button">继续游戏</button>
+          </div>
+        </div>
+        <div class="progress-row">
+          <span id="status">翻开任意一张卡片开始</span>
+          <span id="percent">0%</span>
+        </div>
+        <progress id="progress" value="0" max="6" aria-label="配对进度"></progress>
+        <div class="actions">
+          <button id="pause" class="button" type="button" disabled>暂停</button>
+          <button id="restart" class="button button-primary" type="button">重新开始</button>
+        </div>
+        <section id="result" class="result" aria-labelledby="result-title" hidden>
+          <h2 id="result-title">全部配对成功！</h2>
+          <p id="result-detail"></p>
+        </section>
+      </section>
+      <aside class="sidebar" aria-label="游戏设置与说明">
+        <section class="panel" aria-labelledby="settings-title">
+          <h2 id="settings-title">选择你的挑战</h2>
+          <label class="field" for="difficulty">
+            <span>难度</span>
+            <select id="difficulty">
+              <option value="easy">轻松 · 6 对</option>
+              <option value="normal">专注 · 8 对</option>
+              <option value="hard">挑战 · 12 对</option>
+            </select>
+          </label>
+          <label class="field" for="theme">
+            <span>卡片主题</span>
+            <select id="theme">
+              <option value="letters">字母</option>
+              <option value="numbers">数字</option>
+              <option value="characters">汉字</option>
+            </select>
+          </label>
+        </section>
+        <section class="panel" aria-labelledby="best-title">
+          <h2 id="best-title">本难度最佳</h2>
+          <p id="best" class="best-value">等待新纪录</p>
+          <p id="best-detail" class="note">完成一局，留下你的第一笔成绩。</p>
+          <p id="storage-note" class="note">成绩仅保存在当前浏览器。</p>
+        </section>
+        <details>
+          <summary>怎么玩？</summary>
+          <ol>
+            <li>每次翻开两张卡片，找出相同的内容。</li>
+            <li>配对成功的卡片保持翻开，不同的卡片会重新盖上。</li>
+            <li>每翻开第二张卡片记为一次，次数越少越好。</li>
+            <li>次数相同时，用时更短的成绩优先。</li>
+            <li>切换到其他页面时自动暂停，回来后手动继续。</li>
+          </ol>
+          <p>用 <kbd>Tab</kbd> 选择卡片，<kbd>Enter</kbd> 或空格翻牌。</p>
+          <p><kbd>P</kbd> 暂停或继续，<kbd>R</kbd> 重新开始。</p>
+        </details>
+      </aside>
+    </div>
+    <footer>不赶时间，专注每一次翻牌。无需账号，无需联网。</footer>
+    <p id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+    <noscript>请启用 JavaScript 后开始记忆翻牌游戏。</noscript>
+  </main>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <h2 id="confirm-title">开始新的一局？</h2>
+    <p id="confirm-text">当前进度不会保存，已有的最佳成绩不受影响。</p>
+    <div class="actions">
+      <button id="cancel-reset" class="button" type="button" autofocus>继续本局</button>
+      <button id="confirm-reset" class="button button-primary" type="button">开始新局</button>
+    </div>
+  </dialog>
+  <script>
+    'use strict';
+    const LEVELS = {
+      easy: { pairs: 6, columns: 4, label: '轻松' },
+      normal: { pairs: 8, columns: 4, label: '专注' },
+      hard: { pairs: 12, columns: 6, label: '挑战' }
+    };
+    const THEMES = {
+      letters: [
+        'A',
+        'B',
+        'C',
+        'D',
+        'E',
+        'F',
+        'G',
+        'H',
+        'I',
+        'J',
+        'K',
+        'L'
+      ],
+      numbers: [
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        '9',
+        '10',
+        '11',
+        '12'
+      ],
+      characters: [
+        '山',
+        '水',
+        '日',
+        '月',
+        '风',
+        '云',
+        '花',
+        '木',
+        '春',
+        '夏',
+        '秋',
+        '冬'
+      ]
+    };
+    const STORAGE_KEY = 'memory_game_best_v1';
+    const MISMATCH_DELAY = 850;
+    const ui = {
+      board: document.getElementById('board'),
+      moves: document.getElementById('moves'),
+      clock: document.getElementById('clock'),
+      pairs: document.getElementById('pairs'),
+      status: document.getElementById('status'),
+      percent: document.getElementById('percent'),
+      progress: document.getElementById('progress'),
+      pause: document.getElementById('pause'),
+      resume: document.getElementById('resume'),
+      cover: document.getElementById('pause-cover'),
+      restart: document.getElementById('restart'),
+      difficulty: document.getElementById('difficulty'),
+      theme: document.getElementById('theme'),
+      best: document.getElementById('best'),
+      bestDetail: document.getElementById('best-detail'),
+      storageNote: document.getElementById('storage-note'),
+      result: document.getElementById('result'),
+      resultTitle: document.getElementById('result-title'),
+      resultDetail: document.getElementById('result-detail'),
+      announcement: document.getElementById('announcement'),
+      dialog: document.getElementById('confirm-dialog'),
+      cancelReset: document.getElementById('cancel-reset'),
+      confirmReset: document.getElementById('confirm-reset')
+    };
+    let difficulty = 'easy';
+    let theme = 'letters';
+    let cards = [];
+    let selected = [];
+    let moves = 0;
+    let matchedPairs = 0;
+    let phase = 'ready';
+    let elapsed = 0;
+    let startedAt = 0;
+    let mismatchTimer = null;
+    let pendingReset = null;
+    let resumeAfterDialog = false;
+    let storageAvailable = true;
+    let bestScores = loadScores();
+    function announce(message) {
+      ui.announcement.textContent = message;
+    }
+    function loadScores() {
+      const scores = {};
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return scores;
+        const saved = JSON.parse(raw);
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return scores;
+        for (const key of Object.keys(LEVELS)) {
+          const record = saved[key];
+          if (!record || typeof record !== 'object') continue;
+          if (!Number.isSafeInteger(record.moves)) continue;
+          if (record.moves < LEVELS[key].pairs) continue;
+          if (!Number.isFinite(record.time) || record.time < 0) continue;
+          scores[key] = { moves: record.moves, time: record.time };
+        }
+      } catch {
+        storageAvailable = false;
+      }
+      return scores;
+    }
+    function saveScores() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(bestScores));
+        storageAvailable = true;
+      } catch {
+        storageAvailable = false;
+      }
+    }
+    function formatTime(milliseconds) {
+      const seconds = Math.floor(milliseconds / 1000);
+      const minutes = Math.floor(seconds / 60);
+      return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    }
+    function currentElapsed() {
+      return elapsed + (phase === 'playing' ? performance.now() - startedAt : 0);
+    }
+    function renderClock() {
+      ui.clock.textContent = formatTime(currentElapsed());
+    }
+    function renderBest() {
+      const record = bestScores[difficulty];
+      ui.best.textContent = record ? `${record.moves} 次` : '等待新纪录';
+      ui.bestDetail.textContent = record
+        ? `${LEVELS[difficulty].label}难度 · 用时 ${formatTime(record.time)}`
+        : '完成一局，留下你的第一笔成绩。';
+      ui.storageNote.textContent = storageAvailable
+        ? '成绩仅保存在当前浏览器。'
+        : '浏览器存储不可用，成绩暂存于本次页面。';
+    }
+    function shuffle(items) {
+      const result = [...items];
+      for (let index = result.length - 1; index > 0; index -= 1) {
+        const other = Math.floor(Math.random() * (index + 1));
+        [result[index], result[other]] = [result[other], result[index]];
+      }
+      return result;
+    }
+    function createDeck() {
+      const symbols = shuffle(THEMES[theme]).slice(0, LEVELS[difficulty].pairs);
+      return shuffle([...symbols, ...symbols]).map((symbol, index) => ({
+        id: index,
+        symbol,
+        revealed: false,
+        matched: false,
+        element: null
+      }));
+    }
+    function buildBoard() {
+      ui.board.replaceChildren();
+      ui.board.dataset.columns = String(LEVELS[difficulty].columns);
+      const fragment = document.createDocumentFragment();
+      for (const card of cards) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'card';
+        button.dataset.index = String(card.id);
+        const inner = document.createElement('span');
+        inner.className = 'card-inner';
+        inner.setAttribute('aria-hidden', 'true');
+        const back = document.createElement('span');
+        back.className = 'card-face card-back';
+        back.textContent = String(card.id + 1).padStart(2, '0');
+        const front = document.createElement('span');
+        front.className = 'card-face card-front';
+        front.textContent = card.symbol;
+        inner.append(back, front);
+        button.append(inner);
+        card.element = button;
+        renderCard(card);
+        fragment.append(button);
+      }
+      ui.board.append(fragment);
+    }
+    function renderCard(card) {
+      const visible = card.revealed || card.matched;
+      card.element.dataset.revealed = String(card.revealed);
+      card.element.dataset.matched = String(card.matched);
+      card.element.disabled = card.matched;
+      card.element.setAttribute('aria-pressed', String(visible));
+      const description = card.matched ? '已配对' : visible ? '已翻开' : '未翻开';
+      const content = visible ? `，${card.symbol}` : '';
+      card.element.setAttribute('aria-label', `第 ${card.id + 1} 张${content}，${description}`);
+    }
+    function renderStats() {
+      const total = LEVELS[difficulty].pairs;
+      ui.moves.textContent = String(moves);
+      ui.pairs.textContent = `${matchedPairs} / ${total}`;
+      ui.progress.max = total;
+      ui.progress.value = matchedPairs;
+      ui.percent.textContent = `${Math.round(matchedPairs / total * 100)}%`;
+      ui.pause.disabled = phase === 'ready' || phase === 'won';
+      ui.pause.textContent = phase === 'paused' ? '继续' : '暂停';
+      ui.cover.hidden = phase !== 'paused';
+      ui.board.inert = phase === 'paused';
+      const messages = {
+        ready: '翻开任意一张卡片开始',
+        playing: '记住位置，找到相同的卡片',
+        paused: '已暂停，准备好再继续',
+        won: '全部找到，做得真棒'
+      };
+      ui.status.textContent = messages[phase];
+      renderClock();
+    }
+    function clearMismatch() {
+      if (mismatchTimer !== null) {
+        clearTimeout(mismatchTimer);
+        mismatchTimer = null;
+      }
+    }
+    function resetGame(nextDifficulty = difficulty, nextTheme = theme) {
+      clearMismatch();
+      difficulty = nextDifficulty;
+      theme = nextTheme;
+      selected = [];
+      moves = 0;
+      matchedPairs = 0;
+      elapsed = 0;
+      startedAt = 0;
+      phase = 'ready';
+      ui.difficulty.value = difficulty;
+      ui.theme.value = theme;
+      ui.result.hidden = true;
+      cards = createDeck();
+      buildBoard();
+      renderStats();
+      renderBest();
+      announce(`${LEVELS[difficulty].label}难度，${cards.length} 张卡片，准备开始。`);
+    }
+    function scheduleMismatch() {
+      clearMismatch();
+      mismatchTimer = setTimeout(() => {
+        mismatchTimer = null;
+        for (const card of selected) {
+          card.revealed = false;
+          renderCard(card);
+        }
+        selected = [];
+        announce('这两张不同，已重新盖上，请继续。');
+      }, MISMATCH_DELAY);
+    }
+    function flipCard(index) {
+      if (phase === 'paused' || phase === 'won' || ui.dialog.open) return;
+      if (selected.length === 2) return;
+      const card = cards[index];
+      if (!card || card.matched || card.revealed) return;
+      if (phase === 'ready') {
+        phase = 'playing';
+        startedAt = performance.now();
+      }
+      card.revealed = true;
+      selected.push(card);
+      renderCard(card);
+      if (selected.length === 1) {
+        announce(`翻开了 ${card.symbol}，请选择第二张。`);
+        renderStats();
+        return;
+      }
+      moves += 1;
+      const [first, second] = selected;
+      if (first.symbol === second.symbol) {
+        first.matched = true;
+        second.matched = true;
+        renderCard(first);
+        renderCard(second);
+        matchedPairs += 1;
+        selected = [];
+        announce(`配对成功：${card.symbol}。已找到 ${matchedPairs} 对。`);
+        if (matchedPairs === LEVELS[difficulty].pairs) finishGame();
+      } else {
+        announce(`${first.symbol} 和 ${second.symbol} 不同，请记住位置。`);
+        scheduleMismatch();
+      }
+      renderStats();
+    }
+    function finishGame() {
+      elapsed = currentElapsed();
+      phase = 'won';
+      const previous = bestScores[difficulty];
+      const isBest = !previous || moves < previous.moves
+        || (moves === previous.moves && elapsed < previous.time);
+      if (isBest) {
+        bestScores[difficulty] = { moves, time: elapsed };
+        saveScores();
+      }
+      ui.result.hidden = false;
+      ui.resultTitle.textContent = isBest ? '新的个人最佳！' : '全部配对成功！';
+      ui.resultDetail.textContent = `共用 ${moves} 次、${formatTime(elapsed)}。再来一局，挑战更好的自己。`;
+      renderBest();
+      announce(`${ui.resultTitle.textContent}${ui.resultDetail.textContent}`);
+    }
+    function pauseGame() {
+      if (phase !== 'playing') return;
+      elapsed = currentElapsed();
+      phase = 'paused';
+      clearMismatch();
+      renderStats();
+      announce('游戏已暂停。');
+    }
+    function resumeGame() {
+      if (phase !== 'paused' || ui.dialog.open || document.hidden) return;
+      startedAt = performance.now();
+      phase = 'playing';
+      if (selected.length === 2) scheduleMismatch();
+      renderStats();
+      announce('游戏继续。');
+      const nextCard = cards.find(card => !card.matched && !card.revealed)
+        || cards.find(card => !card.matched);
+      if (nextCard) nextCard.element.focus({ preventScroll: true });
+    }
+    function togglePause() {
+      if (ui.dialog.open) return;
+      if (phase === 'paused') resumeGame();
+      else if (phase === 'playing') {
+        pauseGame();
+        ui.resume.focus({ preventScroll: true });
+      }
+    }
+    function requestReset(nextDifficulty = difficulty, nextTheme = theme) {
+      if (ui.dialog.open) return;
+      if (phase === 'ready' || phase === 'won') {
+        resetGame(nextDifficulty, nextTheme);
+        return;
+      }
+      pendingReset = { difficulty: nextDifficulty, theme: nextTheme };
+      resumeAfterDialog = phase === 'playing';
+      pauseGame();
+      ui.difficulty.value = difficulty;
+      ui.theme.value = theme;
+      ui.dialog.returnValue = '';
+      ui.dialog.showModal();
+    }
+    ui.board.addEventListener('click', event => {
+      const button = event.target.closest('button[data-index]');
+      if (!button || !ui.board.contains(button)) return;
+      flipCard(Number(button.dataset.index));
+    });
+    ui.pause.addEventListener('click', togglePause);
+    ui.resume.addEventListener('click', resumeGame);
+    ui.restart.addEventListener('click', () => requestReset());
+    ui.difficulty.addEventListener('change', () => {
+      requestReset(ui.difficulty.value, theme);
+    });
+    ui.theme.addEventListener('change', () => {
+      requestReset(difficulty, ui.theme.value);
+    });
+    ui.cancelReset.addEventListener('click', () => ui.dialog.close('cancel'));
+    ui.confirmReset.addEventListener('click', () => ui.dialog.close('reset'));
+    ui.dialog.addEventListener('close', () => {
+      const choice = pendingReset;
+      pendingReset = null;
+      if (ui.dialog.returnValue === 'reset' && choice) {
+        resetGame(choice.difficulty, choice.theme);
+        cards[0].element.focus({ preventScroll: true });
+      } else if (resumeAfterDialog) {
+        resumeGame();
+      }
+      resumeAfterDialog = false;
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) pauseGame();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.target.closest('select, input, textarea, [contenteditable]')) return;
+      if (ui.dialog.open) return;
+      const key = event.key.toLowerCase();
+      if (key === 'p') {
+        event.preventDefault();
+        togglePause();
+      } else if (key === 'r') {
+        event.preventDefault();
+        requestReset();
+      }
+    });
+    setInterval(() => {
+      if (phase === 'playing') renderClock();
+    }, 250);
+    resetGame();
+  </script>
+</body>
+</html>
