@@ -131,6 +131,52 @@
       background: var(--surface);
       box-shadow: var(--shadow);
     }
+    .campaign {
+      margin-bottom: 22px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+    .campaign h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+    .stage-list {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 6px;
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .stage-button {
+      width: 100%;
+      min-height: 58px;
+      padding: 6px 2px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--page);
+      color: var(--ink);
+      white-space: pre-line;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .stage-button[data-completed="true"] {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+    .stage-button[aria-current="step"] {
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .stage-button:disabled {
+      color: var(--muted);
+      background: #eee9e2;
+    }
+    #next-stage {
+      margin-top: 14px;
+      width: 100%;
+    }
     .stats {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -514,6 +560,11 @@
     </section>
     <div class="layout">
       <section class="play-area" aria-label="记忆翻牌游戏">
+        <section id="campaign" class="campaign" aria-labelledby="stage-title">
+          <h2 id="stage-title">第 1 关 · 初次相遇</h2>
+          <p id="campaign-progress" class="note">完成当前关卡，解锁下一段挑战。</p>
+          <ol id="stage-list" class="stage-list" aria-label="闯关路线"></ol>
+        </section>
         <dl class="stats">
           <div class="stat">
             <dt>翻牌次数</dt>
@@ -525,7 +576,7 @@
           </div>
           <div class="stat">
             <dt>已配对</dt>
-            <dd id="pairs">0 / 6</dd>
+            <dd id="pairs">0 / 4</dd>
           </div>
         </dl>
         <div class="board-wrap">
@@ -540,7 +591,7 @@
           <span id="status">翻开任意一张卡片开始</span>
           <span id="percent">0%</span>
         </div>
-        <progress id="progress" value="0" max="6" aria-label="配对进度"></progress>
+        <progress id="progress" value="0" max="4" aria-label="配对进度"></progress>
         <div class="actions">
           <button id="pause" class="button" type="button" disabled>暂停</button>
           <button id="restart" class="button button-primary" type="button">重新开始</button>
@@ -548,12 +599,20 @@
         <section id="result" class="result" aria-labelledby="result-title" hidden>
           <h2 id="result-title">全部配对成功！</h2>
           <p id="result-detail"></p>
+          <button id="next-stage" class="button button-primary" type="button" hidden>挑战下一关</button>
         </section>
       </section>
       <aside class="sidebar" aria-label="游戏设置与说明">
         <section class="panel" aria-labelledby="settings-title">
           <h2 id="settings-title">选择你的挑战</h2>
-          <label class="field" for="difficulty">
+          <label class="field" for="mode">
+            <span>游戏模式</span>
+            <select id="mode">
+              <option value="campaign">逐关挑战</option>
+              <option value="practice">自由练习</option>
+            </select>
+          </label>
+          <label id="difficulty-field" class="field" for="difficulty" hidden>
             <span>难度</span>
             <select id="difficulty">
               <option value="easy">轻松 · 6 对</option>
@@ -571,7 +630,7 @@
           </label>
         </section>
         <section class="panel" aria-labelledby="best-title">
-          <h2 id="best-title">本难度最佳</h2>
+          <h2 id="best-title">本关最佳</h2>
           <p id="best" class="best-value">等待新纪录</p>
           <p id="best-detail" class="note">完成一局，留下你的第一笔成绩。</p>
           <p id="storage-note" class="note">成绩仅保存在当前浏览器。</p>
@@ -583,6 +642,9 @@
             <li>配对成功的卡片保持翻开，不同的卡片会重新盖上。</li>
             <li>每翻开第二张卡片记为一次，次数越少越好。</li>
             <li>次数相同时，用时更短的成绩优先。</li>
+            <li>逐关挑战有 5 关，从 4 对逐步增加到 12 对，通关即可解锁下一关。</li>
+            <li>已解锁的关卡可以重玩；自由练习不影响闯关进度。</li>
+            <li>关卡进度和最佳成绩保存在当前浏览器，不保存未完成的棋盘。</li>
             <li>切换到其他页面时自动暂停，回来后手动继续。</li>
           </ol>
           <p>用 <kbd>Tab</kbd> 选择卡片，<kbd>Enter</kbd> 或空格翻牌。</p>
@@ -596,7 +658,7 @@
   </main>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
     <h2 id="confirm-title">开始新的一局？</h2>
-    <p id="confirm-text">当前进度不会保存，已有的最佳成绩不受影响。</p>
+    <p id="confirm-text">本局未完成的配对将重置，已解锁关卡和最佳成绩不受影响。</p>
     <div class="actions">
       <button id="cancel-reset" class="button" type="button" autofocus>继续本局</button>
       <button id="confirm-reset" class="button button-primary" type="button">开始新局</button>
@@ -608,6 +670,17 @@
       easy: { pairs: 6, columns: 4, label: '轻松' },
       normal: { pairs: 8, columns: 4, label: '专注' },
       hard: { pairs: 12, columns: 6, label: '挑战' }
+    };
+    const STAGES = [
+      { pairs: 4, columns: 4, label: '初次相遇' },
+      { pairs: 6, columns: 4, label: '渐入佳境' },
+      { pairs: 8, columns: 4, label: '专注时刻' },
+      { pairs: 10, columns: 4, label: '记忆迷宫' },
+      { pairs: 12, columns: 6, label: '记忆大师' }
+    ];
+    const SCORE_LEVELS = {
+      ...LEVELS,
+      ...Object.fromEntries(STAGES.map((stage, index) => [`stage-${index + 1}`, stage]))
     };
     const THEMES = {
       letters: [
@@ -656,6 +729,14 @@
     const STORAGE_KEY = 'memory_game_best_v1';
     const MISMATCH_DELAY = 850;
     const ui = {
+      mode: document.getElementById('mode'),
+      campaign: document.getElementById('campaign'),
+      stageTitle: document.getElementById('stage-title'),
+      campaignProgress: document.getElementById('campaign-progress'),
+      stageList: document.getElementById('stage-list'),
+      difficultyField: document.getElementById('difficulty-field'),
+      bestTitle: document.getElementById('best-title'),
+      nextStage: document.getElementById('next-stage'),
       board: document.getElementById('board'),
       moves: document.getElementById('moves'),
       clock: document.getElementById('clock'),
@@ -694,6 +775,51 @@
     let resumeAfterDialog = false;
     let storageAvailable = true;
     let bestScores = loadScores();
+    let mode = 'campaign';
+    let stageIndex = Math.min(completedStages(), STAGES.length - 1);
+    function completedStages() {
+      let completed = 0;
+      while (completed < STAGES.length && bestScores[`stage-${completed + 1}`]) {
+        completed += 1;
+      }
+      return completed;
+    }
+    function currentLevel() {
+      return mode === 'campaign' ? STAGES[stageIndex] : LEVELS[difficulty];
+    }
+    function scoreKey() {
+      return mode === 'campaign' ? `stage-${stageIndex + 1}` : difficulty;
+    }
+    function renderSettings() {
+      ui.mode.value = mode;
+      ui.difficulty.value = difficulty;
+      ui.theme.value = theme;
+      ui.difficultyField.hidden = mode === 'campaign';
+      ui.campaign.hidden = mode !== 'campaign';
+      ui.bestTitle.textContent = mode === 'campaign' ? '本关最佳' : '本难度最佳';
+      const completed = completedStages();
+      ui.stageTitle.textContent = `第 ${stageIndex + 1} 关 · ${STAGES[stageIndex].label}`;
+      ui.campaignProgress.textContent = completed === STAGES.length
+        ? '全部通关！可以重玩任意关卡，刷新个人最佳。'
+        : `已通关 ${completed} / ${STAGES.length} · 本关 ${STAGES[stageIndex].pairs} 对，配对全部卡片即可过关。`;
+      ui.stageList.replaceChildren();
+      STAGES.forEach((stage, index) => {
+        const item = document.createElement('li');
+        const button = document.createElement('button');
+        const locked = index > completed;
+        const status = index < completed ? '已通关' : locked ? '未解锁' : '待挑战';
+        button.type = 'button';
+        button.className = 'stage-button';
+        button.dataset.stage = String(index);
+        button.dataset.completed = String(index < completed);
+        button.disabled = locked;
+        button.textContent = `${index + 1}\n${status}`;
+        button.setAttribute('aria-label', `第 ${index + 1} 关，${stage.label}，${stage.pairs} 对，${status}`);
+        if (index === stageIndex) button.setAttribute('aria-current', 'step');
+        item.append(button);
+        ui.stageList.append(item);
+      });
+    }
     function announce(message) {
       ui.announcement.textContent = message;
     }
@@ -704,14 +830,20 @@
         if (!raw) return scores;
         const saved = JSON.parse(raw);
         if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return scores;
-        for (const key of Object.keys(LEVELS)) {
+        for (const key of Object.keys(SCORE_LEVELS)) {
           const record = saved[key];
           if (!record || typeof record !== 'object') continue;
           if (!Number.isSafeInteger(record.moves)) continue;
-          if (record.moves < LEVELS[key].pairs) continue;
+          if (record.moves < SCORE_LEVELS[key].pairs) continue;
           if (!Number.isFinite(record.time) || record.time < 0) continue;
           scores[key] = { moves: record.moves, time: record.time };
         }
+        let gap = false;
+        STAGES.forEach((stage, index) => {
+          const key = `stage-${index + 1}`;
+          if (!scores[key]) gap = true;
+          if (gap) delete scores[key];
+        });
       } catch {
         storageAvailable = false;
       }
@@ -737,14 +869,14 @@
       ui.clock.textContent = formatTime(currentElapsed());
     }
     function renderBest() {
-      const record = bestScores[difficulty];
+      const record = bestScores[scoreKey()];
       ui.best.textContent = record ? `${record.moves} 次` : '等待新纪录';
       ui.bestDetail.textContent = record
-        ? `${LEVELS[difficulty].label}难度 · 用时 ${formatTime(record.time)}`
+        ? `${currentLevel().label} · 用时 ${formatTime(record.time)}`
         : '完成一局，留下你的第一笔成绩。';
       ui.storageNote.textContent = storageAvailable
-        ? '成绩仅保存在当前浏览器。'
-        : '浏览器存储不可用，成绩暂存于本次页面。';
+        ? '成绩和闯关进度仅保存在当前浏览器。'
+        : '浏览器存储不可用，成绩和进度仅在本次页面有效。';
     }
     function shuffle(items) {
       const result = [...items];
@@ -755,7 +887,7 @@
       return result;
     }
     function createDeck() {
-      const symbols = shuffle(THEMES[theme]).slice(0, LEVELS[difficulty].pairs);
+      const symbols = shuffle(THEMES[theme]).slice(0, currentLevel().pairs);
       return shuffle([...symbols, ...symbols]).map((symbol, index) => ({
         id: index,
         symbol,
@@ -766,7 +898,7 @@
     }
     function buildBoard() {
       ui.board.replaceChildren();
-      ui.board.dataset.columns = String(LEVELS[difficulty].columns);
+      ui.board.dataset.columns = String(currentLevel().columns);
       const fragment = document.createDocumentFragment();
       for (const card of cards) {
         const button = document.createElement('button');
@@ -801,7 +933,7 @@
       card.element.setAttribute('aria-label', `第 ${card.id + 1} 张${content}，${description}`);
     }
     function renderStats() {
-      const total = LEVELS[difficulty].pairs;
+      const total = currentLevel().pairs;
       ui.moves.textContent = String(moves);
       ui.pairs.textContent = `${matchedPairs} / ${total}`;
       ui.progress.max = total;
@@ -826,24 +958,26 @@
         mismatchTimer = null;
       }
     }
-    function resetGame(nextDifficulty = difficulty, nextTheme = theme) {
+    function resetGame(options = {}) {
       clearMismatch();
-      difficulty = nextDifficulty;
-      theme = nextTheme;
+      difficulty = options.difficulty ?? difficulty;
+      theme = options.theme ?? theme;
+      mode = options.mode ?? mode;
+      stageIndex = options.stageIndex ?? stageIndex;
       selected = [];
       moves = 0;
       matchedPairs = 0;
       elapsed = 0;
       startedAt = 0;
       phase = 'ready';
-      ui.difficulty.value = difficulty;
-      ui.theme.value = theme;
       ui.result.hidden = true;
+      ui.nextStage.hidden = true;
       cards = createDeck();
       buildBoard();
+      renderSettings();
       renderStats();
       renderBest();
-      announce(`${LEVELS[difficulty].label}难度，${cards.length} 张卡片，准备开始。`);
+      announce(`${mode === 'campaign' ? `第 ${stageIndex + 1} 关，` : ''}${currentLevel().label}，${cards.length} 张卡片，准备开始。`);
     }
     function scheduleMismatch() {
       clearMismatch();
@@ -884,7 +1018,7 @@
         matchedPairs += 1;
         selected = [];
         announce(`配对成功：${card.symbol}。已找到 ${matchedPairs} 对。`);
-        if (matchedPairs === LEVELS[difficulty].pairs) finishGame();
+        if (matchedPairs === currentLevel().pairs) finishGame();
       } else {
         announce(`${first.symbol} 和 ${second.symbol} 不同，请记住位置。`);
         scheduleMismatch();
@@ -894,16 +1028,29 @@
     function finishGame() {
       elapsed = currentElapsed();
       phase = 'won';
-      const previous = bestScores[difficulty];
+      const key = scoreKey();
+      const previous = bestScores[key];
       const isBest = !previous || moves < previous.moves
         || (moves === previous.moves && elapsed < previous.time);
       if (isBest) {
-        bestScores[difficulty] = { moves, time: elapsed };
+        bestScores[key] = { moves, time: elapsed };
         saveScores();
       }
       ui.result.hidden = false;
       ui.resultTitle.textContent = isBest ? '新的个人最佳！' : '全部配对成功！';
-      ui.resultDetail.textContent = `共用 ${moves} 次、${formatTime(elapsed)}。再来一局，挑战更好的自己。`;
+      ui.resultDetail.textContent = `共用 ${moves} 次、${formatTime(elapsed)}。`;
+      if (mode === 'campaign') {
+        const finalStage = stageIndex === STAGES.length - 1;
+        ui.resultTitle.textContent = finalStage ? '恭喜，全部关卡通关！' : `第 ${stageIndex + 1} 关通过！`;
+        ui.resultDetail.textContent += finalStage
+          ? '你已完成全部 5 关，可以重玩挑战更好的成绩。'
+          : `${isBest ? '刷新本关最佳。' : ''}第 ${stageIndex + 2} 关已解锁。`;
+        ui.nextStage.hidden = finalStage;
+        ui.nextStage.textContent = `挑战第 ${stageIndex + 2} 关`;
+      } else {
+        ui.resultDetail.textContent += '再来一局，挑战更好的自己。';
+      }
+      renderSettings();
       renderBest();
       announce(`${ui.resultTitle.textContent}${ui.resultDetail.textContent}`);
     }
@@ -934,17 +1081,19 @@
         ui.resume.focus({ preventScroll: true });
       }
     }
-    function requestReset(nextDifficulty = difficulty, nextTheme = theme) {
+    function requestReset(options = {}) {
       if (ui.dialog.open) return;
+      const next = { difficulty, theme, mode, stageIndex, ...options };
+      if (!Number.isInteger(next.stageIndex) || next.stageIndex < 0
+        || next.stageIndex >= STAGES.length || next.stageIndex > completedStages()) return;
       if (phase === 'ready' || phase === 'won') {
-        resetGame(nextDifficulty, nextTheme);
+        resetGame(next);
         return;
       }
-      pendingReset = { difficulty: nextDifficulty, theme: nextTheme };
+      pendingReset = next;
       resumeAfterDialog = phase === 'playing';
       pauseGame();
-      ui.difficulty.value = difficulty;
-      ui.theme.value = theme;
+      renderSettings();
       ui.dialog.returnValue = '';
       ui.dialog.showModal();
     }
@@ -956,11 +1105,25 @@
     ui.pause.addEventListener('click', togglePause);
     ui.resume.addEventListener('click', resumeGame);
     ui.restart.addEventListener('click', () => requestReset());
+    ui.mode.addEventListener('change', () => {
+      requestReset({ mode: ui.mode.value });
+    });
+    ui.stageList.addEventListener('click', event => {
+      const button = event.target.closest('button[data-stage]');
+      if (!button || button.disabled || !ui.stageList.contains(button)) return;
+      requestReset({ mode: 'campaign', stageIndex: Number(button.dataset.stage) });
+    });
+    ui.nextStage.addEventListener('click', () => {
+      if (mode !== 'campaign' || phase !== 'won' || stageIndex >= STAGES.length - 1) return;
+      requestReset({ stageIndex: stageIndex + 1 });
+      cards[0].element.focus({ preventScroll: true });
+      ui.campaign.scrollIntoView({ block: 'nearest' });
+    });
     ui.difficulty.addEventListener('change', () => {
-      requestReset(ui.difficulty.value, theme);
+      requestReset({ difficulty: ui.difficulty.value });
     });
     ui.theme.addEventListener('change', () => {
-      requestReset(difficulty, ui.theme.value);
+      requestReset({ theme: ui.theme.value });
     });
     ui.cancelReset.addEventListener('click', () => ui.dialog.close('cancel'));
     ui.confirmReset.addEventListener('click', () => ui.dialog.close('reset'));
@@ -968,7 +1131,7 @@
       const choice = pendingReset;
       pendingReset = null;
       if (ui.dialog.returnValue === 'reset' && choice) {
-        resetGame(choice.difficulty, choice.theme);
+        resetGame(choice);
         cards[0].element.focus({ preventScroll: true });
       } else if (resumeAfterDialog) {
         resumeGame();
